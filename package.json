@@ -1,0 +1,15 @@
+{
+  "name": "friends-calendar",
+  "version": "1.0.0",
+  "description": "Friend availability calendar for June + first week of July 2026",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=14"
+  }
+}

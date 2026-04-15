@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>June Meetups</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌴</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #ffffff;
+  color: #37352f;
+  line-height: 1.5;
+  padding: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 4px; }
+.subtitle { color: #9b9a97; font-size: 0.9rem; margin-bottom: 24px; }
+
+/* ---- Input bar ---- */
+.input-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 24px;
+  padding: 16px;
+  border: 1px solid #e9e9e7;
+  border-radius: 8px;
+  background: #fbfbfa;
+}
+.input-bar input[type="text"] {
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 8px 12px;
+  border: 1px solid #e9e9e7;
+  border-radius: 6px;
+  background: #fff;
+  outline: none;
+  width: 180px;
+}
+.input-bar input[type="text"]:focus { border-color: #c4c4c2; }
+
+.loc-btns { display: flex; gap: 6px; }
+.loc-btn {
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 7px 14px;
+  border: 1px solid #e9e9e7;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: #37352f;
+}
+.loc-btn:hover { background: #f7f6f3; }
+.loc-btn.active-jersey { background: #e8deee; border-color: #d3c4e3; color: #6940a5; }
+.loc-btn.active-london { background: #d3e5ef; border-color: #b8d4e3; color: #2e6b8a; }
+
+.action-btn {
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-select {
+  background: #37352f;
+  color: #fff;
+}
+.btn-select:hover { background: #555; }
+.btn-select:disabled { background: #c4c4c2; cursor: default; }
+.btn-done {
+  background: #2ecc71;
+  color: #fff;
+  display: none;
+}
+.btn-done:hover { background: #27ae60; }
+.btn-cancel {
+  background: #fff;
+  color: #9b9a97;
+  border: 1px solid #e9e9e7;
+  display: none;
+}
+.btn-cancel:hover { background: #f7f6f3; color: #37352f; }
+
+.selecting-hint {
+  display: none;
+  font-size: 0.82rem;
+  color: #9b9a97;
+  width: 100%;
+  margin-top: 4px;
+}
+
+/* ---- Calendar ---- */
+.cal-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  margin-bottom: 1px;
+}
+.cal-header div {
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #9b9a97;
+  text-transform: uppercase;
+  padding: 8px 0;
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: #e9e9e7;
+  border: 1px solid #e9e9e7;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.day-cell {
+  background: #fff;
+  min-height: 100px;
+  padding: 6px;
+  position: relative;
+  transition: background 0.1s;
+}
+.day-cell.empty { background: #fbfbfa; }
+.day-cell .day-num {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #9b9a97;
+  margin-bottom: 4px;
+}
+.day-cell.today .day-num {
+  background: #37352f;
+  color: #fff;
+  width: 22px; height: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+}
+.day-cell.weekend { background: #fafaf9; }
+
+/* Selecting mode */
+body.selecting .day-cell:not(.empty) { cursor: pointer; }
+body.selecting .day-cell:not(.empty):hover { background: #f0f0ee; }
+.day-cell.selected-day { background: #edf8ee !important; }
+
+/* Tags */
+.tags { display: flex; flex-wrap: wrap; gap: 3px; }
+.tag {
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.tag-0  { background: #f5e0dc; color: #6b3b2f; }
+.tag-1  { background: #fadec9; color: #6b4226; }
+.tag-2  { background: #fdecc8; color: #614a1f; }
+.tag-3  { background: #dbeddb; color: #2e5a3a; }
+.tag-4  { background: #d3e5ef; color: #2e6b8a; }
+.tag-5  { background: #e8deee; color: #6940a5; }
+.tag-6  { background: #f5e0e9; color: #78365a; }
+.tag-7  { background: #ffe2dd; color: #7d3a34; }
+.tag-8  { background: #d8e5ee; color: #3a5d7c; }
+.tag-9  { background: #eee0da; color: #654a3c; }
+.tag-10 { background: #dce5d5; color: #3d5429; }
+.tag-11 { background: #e0d7ec; color: #5a3d85; }
+
+/* ---- People section ---- */
+.people-section {
+  margin-top: 32px;
+  padding: 20px;
+  border: 1px solid #e9e9e7;
+  border-radius: 8px;
+  background: #fbfbfa;
+}
+.people-section h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #37352f;
+}
+.person-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+  background: #fff;
+  border: 1px solid #e9e9e7;
+}
+.person-info { display: flex; align-items: center; gap: 10px; }
+.person-name { font-weight: 500; font-size: 0.9rem; }
+.person-meta { font-size: 0.8rem; color: #9b9a97; }
+.remove-btn {
+  font-family: inherit;
+  font-size: 0.78rem;
+  padding: 4px 10px;
+  border: 1px solid #e9e9e7;
+  border-radius: 5px;
+  background: #fff;
+  color: #9b9a97;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.remove-btn:hover { background: #ffe2dd; color: #7d3a34; border-color: #f5c6c0; }
+
+.no-people { color: #9b9a97; font-size: 0.85rem; font-style: italic; }
+
+/* Month label */
+.month-label {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 20px 0 8px;
+  color: #37352f;
+}
+
+/* Responsive */
+@media (max-width: 700px) {
+  body { padding: 12px; }
+  .day-cell { min-height: 70px; padding: 4px; }
+  .day-cell .day-num { font-size: 0.72rem; }
+  .tag { font-size: 0.6rem; padding: 1px 4px; }
+  .input-bar { padding: 12px; }
+  .input-bar input[type="text"] { width: 100%; }
+  h1 { font-size: 1.4rem; }
+}
+</style>
+</head>
+<body>
+
+<h1>🌴 June Meetups</h1>
+<p class="subtitle">Pick your days — Jersey & London — June + first week of July 2026</p>
+
+<div class="input-bar">
+  <input type="text" id="nameInput" placeholder="Your name">
+  <div class="loc-btns">
+    <button class="loc-btn" data-loc="jersey" onclick="pickLocation('jersey')">🏖️ Jersey</button>
+    <button class="loc-btn" data-loc="london" onclick="pickLocation('london')">🇬🇧 London</button>
+  </div>
+  <button class="action-btn btn-select" id="selectBtn" onclick="startSelecting()" disabled>Select days</button>
+  <button class="action-btn btn-done" id="doneBtn" onclick="doneSelecting()">Done</button>
+  <button class="action-btn btn-cancel" id="cancelBtn" onclick="cancelSelecting()">Cancel</button>
+  <div class="selecting-hint" id="hint">Click on calendar days to toggle your availability, then press Done.</div>
+</div>
+
+<div id="calendarContainer"></div>
+
+<div class="people-section">
+  <h2>People</h2>
+  <div id="peopleList"><p class="no-people">No one yet — add your availability above.</p></div>
+</div>
+
+<script>
+const TAG_COLORS = 12;
+const LOCATIONS = { jersey: "🏖️", london: "🇬🇧" };
+
+let entries = [];
+let selectedDays = new Set();
+let currentLocation = null;
+let selecting = false;
+let colorCounter = 0;
+
+// ---- API helpers ----
+async function fetchEntries() {
+  const res = await fetch("/api/entries");
+  entries = await res.json();
+  colorCounter = 0;
+  const seen = new Set();
+  entries.forEach(e => { if (!seen.has(e.name.toLowerCase())) { seen.add(e.name.toLowerCase()); colorCounter = Math.max(colorCounter, (e.colorIdx ?? 0) + 1); }});
+  render();
+}
+
+async function postEntry(entry) {
+  await fetch("/api/entries", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(entry)
+  });
+  await fetchEntries();
+}
+
+async function deleteEntry(name) {
+  await fetch("/api/entries/" + encodeURIComponent(name), { method: "DELETE" });
+  await fetchEntries();
+}
+
+// ---- Calendar date helpers ----
+function calendarDays() {
+  // June 1 2026 is Monday. We show June 1 - July 5 (5 weeks).
+  const days = [];
+  const start = new Date(2026, 5, 1); // June 1
+  const end = new Date(2026, 6, 5);   // July 5
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    days.push(new Date(d));
+  }
+  return days;
+}
+
+function fmtKey(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+function isWeekend(d) {
+  return d.getDay() === 0 || d.getDay() === 6;
+}
+
+function isToday(d) {
+  const t = new Date();
+  return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
+}
+
+// ---- Build calendar HTML ----
+function buildCalendar() {
+  const container = document.getElementById("calendarContainer");
+  const days = calendarDays();
+  const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+  // Build a map: dateKey -> [{name, location, colorIdx}]
+  const dayMap = {};
+  entries.forEach(e => {
+    (e.dates || []).forEach(dk => {
+      if (!dayMap[dk]) dayMap[dk] = [];
+      dayMap[dk].push({ name: e.name, location: e.location, colorIdx: e.colorIdx ?? 0 });
+    });
+  });
+
+  let html = "";
+
+  // Split into months for labeling
+  let currentMonth = -1;
+  const weeks = [];
+  let week = [];
+  days.forEach(d => {
+    // day of week: Mon=0 ... Sun=6
+    const dow = (d.getDay() + 6) % 7;
+    if (dow === 0 && week.length) { weeks.push(week); week = []; }
+    week.push(d);
+  });
+  if (week.length) {
+    // Pad last week to 7 days
+    while (week.length < 7) week.push(null);
+    weeks.push(week);
+  }
+
+  // Header
+  html += '<div class="cal-header">';
+  dayNames.forEach(n => { html += `<div>${n}</div>`; });
+  html += '</div>';
+
+  let lastMonth = -1;
+  weeks.forEach(wk => {
+    const firstReal = wk.find(d => d !== null);
+    if (firstReal && firstReal.getMonth() !== lastMonth) {
+      lastMonth = firstReal.getMonth();
+      const mName = firstReal.toLocaleString("en", { month: "long", year: "numeric" });
+      html += `<div class="month-label">${mName}</div>`;
+    }
+
+    html += '<div class="cal-grid">';
+    wk.forEach(d => {
+      if (!d) {
+        html += '<div class="day-cell empty"></div>';
+        return;
+      }
+      const key = fmtKey(d);
+      const classes = ["day-cell"];
+      if (isWeekend(d)) classes.push("weekend");
+      if (isToday(d)) classes.push("today");
+      if (selectedDays.has(key)) classes.push("selected-day");
+
+      html += `<div class="${classes.join(" ")}" data-date="${key}" onclick="toggleDay('${key}')">`;
+      html += `<div class="day-num">${d.getDate()}</div>`;
+      html += '<div class="tags">';
+      (dayMap[key] || []).forEach(t => {
+        const emoji = LOCATIONS[t.location] || "";
+        const ci = t.colorIdx % TAG_COLORS;
+        html += `<span class="tag tag-${ci}">${emoji} ${t.name}</span>`;
+      });
+      html += '</div></div>';
+    });
+    html += '</div>';
+  });
+
+  container.innerHTML = html;
+}
+
+// ---- People list ----
+function buildPeople() {
+  const list = document.getElementById("peopleList");
+  // Group by name (case-insensitive)
+  const grouped = {};
+  entries.forEach(e => {
+    const key = e.name.toLowerCase();
+    if (!grouped[key]) grouped[key] = { name: e.name, entries: [] };
+    grouped[key].entries.push(e);
+  });
+
+  const names = Object.keys(grouped);
+  if (!names.length) {
+    list.innerHTML = '<p class="no-people">No one yet — add your availability above.</p>';
+    return;
+  }
+
+  let html = "";
+  names.forEach(key => {
+    const g = grouped[key];
+    const totalDays = g.entries.reduce((sum, e) => sum + (e.dates ? e.dates.length : 0), 0);
+    const locs = [...new Set(g.entries.map(e => (LOCATIONS[e.location] || "") + " " + e.location))];
+    const ci = g.entries[0].colorIdx % TAG_COLORS;
+    html += `<div class="person-row">
+      <div class="person-info">
+        <span class="tag tag-${ci}" style="font-size:0.82rem">${g.name}</span>
+        <span class="person-meta">${totalDays} day${totalDays !== 1 ? "s" : ""} · ${locs.join(", ")}</span>
+      </div>
+      <button class="remove-btn" onclick="removePerson('${g.name.replace(/'/g, "\\'")}')">Remove</button>
+    </div>`;
+  });
+  list.innerHTML = html;
+}
+
+// ---- Render all ----
+function render() {
+  buildCalendar();
+  buildPeople();
+}
+
+// ---- Interaction ----
+function pickLocation(loc) {
+  currentLocation = loc;
+  document.querySelectorAll(".loc-btn").forEach(b => {
+    b.classList.remove("active-jersey", "active-london");
+    if (b.dataset.loc === loc) b.classList.add(loc === "jersey" ? "active-jersey" : "active-london");
+  });
+  updateSelectBtn();
+}
+
+function updateSelectBtn() {
+  const name = document.getElementById("nameInput").value.trim();
+  document.getElementById("selectBtn").disabled = !(name && currentLocation);
+}
+document.getElementById("nameInput").addEventListener("input", updateSelectBtn);
+
+function startSelecting() {
+  selecting = true;
+  selectedDays.clear();
+  document.body.classList.add("selecting");
+  document.getElementById("selectBtn").style.display = "none";
+  document.getElementById("doneBtn").style.display = "";
+  document.getElementById("cancelBtn").style.display = "";
+  document.getElementById("hint").style.display = "";
+  document.getElementById("nameInput").disabled = true;
+  document.querySelectorAll(".loc-btn").forEach(b => b.disabled = true);
+  render();
+}
+
+function cancelSelecting() {
+  selecting = false;
+  selectedDays.clear();
+  document.body.classList.remove("selecting");
+  document.getElementById("selectBtn").style.display = "";
+  document.getElementById("doneBtn").style.display = "none";
+  document.getElementById("cancelBtn").style.display = "none";
+  document.getElementById("hint").style.display = "none";
+  document.getElementById("nameInput").disabled = false;
+  document.querySelectorAll(".loc-btn").forEach(b => b.disabled = false);
+  render();
+}
+
+async function doneSelecting() {
+  if (!selectedDays.size) { cancelSelecting(); return; }
+  const name = document.getElementById("nameInput").value.trim();
+
+  // Determine color: reuse if same person already has entries, else new
+  let colorIdx;
+  const existing = entries.find(e => e.name.toLowerCase() === name.toLowerCase());
+  if (existing) {
+    colorIdx = existing.colorIdx ?? 0;
+  } else {
+    colorIdx = colorCounter % TAG_COLORS;
+  }
+
+  await postEntry({
+    name,
+    location: currentLocation,
+    dates: [...selectedDays].sort(),
+    colorIdx
+  });
+
+  selecting = false;
+  selectedDays.clear();
+  document.body.classList.remove("selecting");
+  document.getElementById("selectBtn").style.display = "";
+  document.getElementById("doneBtn").style.display = "none";
+  document.getElementById("cancelBtn").style.display = "none";
+  document.getElementById("hint").style.display = "none";
+  document.getElementById("nameInput").disabled = false;
+  document.querySelectorAll(".loc-btn").forEach(b => b.disabled = false);
+  document.getElementById("nameInput").value = "";
+  currentLocation = null;
+  document.querySelectorAll(".loc-btn").forEach(b => b.classList.remove("active-jersey", "active-london"));
+  updateSelectBtn();
+}
+
+function toggleDay(key) {
+  if (!selecting) return;
+  if (selectedDays.has(key)) selectedDays.delete(key);
+  else selectedDays.add(key);
+  render();
+}
+
+async function removePerson(name) {
+  await deleteEntry(name);
+}
+
+// ---- Init ----
+fetchEntries();
+</script>
+</body>
+</html>
