@@ -41,6 +41,24 @@ app.post("/api/entries", (req, res) => {
   res.json({ ok: true });
 });
 
+// Replace all entries for a person (used by Edit)
+app.put("/api/entries/:name", (req, res) => {
+  const { jersey, london } = req.body;
+  const entries = readData();
+  const filtered = entries.filter(
+    (e) => e.name.toLowerCase() !== req.params.name.toLowerCase()
+  );
+  const name = req.params.name;
+  if (jersey && jersey.length > 0) {
+    filtered.push({ name, location: "jersey", dates: jersey });
+  }
+  if (london && london.length > 0) {
+    filtered.push({ name, location: "london", dates: london });
+  }
+  writeData(filtered);
+  res.json({ ok: true });
+});
+
 // Delete all entries for a person
 app.delete("/api/entries/:name", (req, res) => {
   const entries = readData();

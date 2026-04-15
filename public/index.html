@@ -263,7 +263,7 @@ body.selecting .day-cell:not(.empty):hover { background: #f0f0ee; }
 .person-info { display: flex; align-items: center; gap: 10px; }
 .person-name { font-weight: 500; font-size: 0.9rem; }
 .person-meta { font-size: 0.8rem; color: #9b9a97; }
-.remove-btn {
+.edit-btn {
   font-family: inherit;
   font-size: 0.78rem;
   padding: 4px 10px;
@@ -274,7 +274,7 @@ body.selecting .day-cell:not(.empty):hover { background: #f0f0ee; }
   cursor: pointer;
   transition: all 0.15s;
 }
-.remove-btn:hover { background: #ffe2dd; color: #7d3a34; border-color: #f5c6c0; }
+.edit-btn:hover { background: #f7f6f3; color: #37352f; border-color: #c4c4c2; }
 
 .no-people { color: #9b9a97; font-size: 0.85rem; font-style: italic; }
 
@@ -537,7 +537,7 @@ function buildPeople() {
         <span style="font-weight:600; font-size:0.9rem; min-width:60px;">${g.name}</span>
         ${meta}
       </div>
-      <button class="remove-btn" onclick="removePerson('${g.name.replace(/'/g, "\\'")}')">Remove</button>
+      <button class="edit-btn" onclick="editPerson('${g.name.replace(/'/g, "\\'")}')">Edit</button>
     </div>`;
   });
   list.innerHTML = html;
@@ -595,7 +595,7 @@ function pickLocation(loc) {
 let jerseyDays = new Set();
 let londonDays = new Set();
 let selectingName = "";
-let selectingColorIdx = 0;
+let editingExisting = false; // true when editing an existing person
 
 function updateBanner() {
   const banner = document.getElementById("selectBanner");
@@ -606,26 +606,65 @@ function updateBanner() {
 
   banner.className = `select-banner show ${currentLocation === "jersey" ? "jersey-mode" : "london-mode"}`;
 
-  let text = `<strong>${selectingName}</strong> — selecting ${locLabel} days`;
+  const action = editingExisting ? "editing" : "selecting";
+  let text = `<strong>${selectingName}</strong> — ${action} ${locLabel} days`;
   if (currentDays.size > 0) text += ` <span class="day-count">(${currentDays.size} selected)</span>`;
-  if (otherDays.size > 0) text += ` · ${currentLocation === "jersey" ? "🇬🇧" : "🐄"} ${otherDays.size} already saved`;
+  if (otherDays.size > 0) text += ` · ${currentLocation === "jersey" ? "🇬🇧" : "🐄"} ${otherDays.size}`;
   document.getElementById("bannerText").innerHTML = text;
 
   document.getElementById("switchBtn").textContent = `Switch to ${otherLabel}`;
+  document.getElementById("bannerDoneBtn").textContent = editingExisting ? "Save" : "Done";
 }
 
 function startSelecting() {
   selecting = true;
+  editingExisting = false;
   selectingName = document.getElementById("nameInput").value.trim();
   selectedDays.clear();
   jerseyDays.clear();
   londonDays.clear();
 
-  // Determine color
-  const existing = entries.find(e => e.name.toLowerCase() === selectingName.toLowerCase());
-  selectingColorIdx = existing ? (existing.colorIdx ?? 0) : colorCounter % TAG_COLORS;
+  document.body.classList.add("selecting");
+  document.getElementById("nameInput").disabled = true;
+  document.getElementById("nameHint").style.display = "none";
+
+  updateBanner();
+  render();
+}
+
+function editPerson(name) {
+  if (selecting) return; // already in a mode
+
+  selecting = true;
+  editingExisting = true;
+  selectingName = name;
+  jerseyDays.clear();
+  londonDays.clear();
+
+  // Load existing dates for this person
+  entries.forEach(e => {
+    if (e.name.toLowerCase() === name.toLowerCase()) {
+      (e.dates || []).forEach(d => {
+        if (e.location === "jersey") jerseyDays.add(d);
+        else londonDays.add(d);
+      });
+    }
+  });
+
+  // Default to jersey view, or london if they only have london days
+  currentLocation = jerseyDays.size > 0 ? "jersey" : (londonDays.size > 0 ? "london" : "jersey");
+  document.querySelectorAll(".loc-btn").forEach(b => {
+    b.classList.remove("active-jersey", "active-london");
+    if (b.dataset.loc === currentLocation) b.classList.add(currentLocation === "jersey" ? "active-jersey" : "active-london");
+  });
+
+  // Load current location's days into selectedDays
+  selectedDays.clear();
+  const currentSet = currentLocation === "jersey" ? jerseyDays : londonDays;
+  currentSet.forEach(d => selectedDays.add(d));
 
   document.body.classList.add("selecting");
+  document.getElementById("nameInput").value = name;
   document.getElementById("nameInput").disabled = true;
   document.getElementById("nameHint").style.display = "none";
 
@@ -676,29 +715,38 @@ async function doneSelecting() {
   currentSet.clear();
   selectedDays.forEach(d => currentSet.add(d));
 
-  if (!jerseyDays.size && !londonDays.size) { cancelSelecting(); return; }
+  if (!jerseyDays.size && !londonDays.size && !editingExisting) { cancelSelecting(); return; }
 
-  // Post jersey entry if any days selected
-  if (jerseyDays.size > 0) {
-    await postEntry({
-      name: selectingName,
-      location: "jersey",
-      dates: [...jerseyDays].sort(),
-      colorIdx: selectingColorIdx
+  if (editingExisting) {
+    // PUT replaces all entries for this person
+    await fetch("/api/entries/" + encodeURIComponent(selectingName), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jersey: [...jerseyDays].sort(),
+        london: [...londonDays].sort()
+      })
     });
-  }
-
-  // Post london entry if any days selected
-  if (londonDays.size > 0) {
-    await postEntry({
-      name: selectingName,
-      location: "london",
-      dates: [...londonDays].sort(),
-      colorIdx: selectingColorIdx
-    });
+  } else {
+    // Post new entries
+    if (jerseyDays.size > 0) {
+      await postEntry({
+        name: selectingName,
+        location: "jersey",
+        dates: [...jerseyDays].sort()
+      });
+    }
+    if (londonDays.size > 0) {
+      await postEntry({
+        name: selectingName,
+        location: "london",
+        dates: [...londonDays].sort()
+      });
+    }
   }
 
   selecting = false;
+  editingExisting = false;
   selectedDays.clear();
   jerseyDays.clear();
   londonDays.clear();
@@ -718,10 +766,6 @@ function toggleDay(key) {
   else selectedDays.add(key);
   updateBanner();
   render();
-}
-
-async function removePerson(name) {
-  await deleteEntry(name);
 }
 
 // ---- Init ----
