@@ -319,7 +319,7 @@ body.selecting .day-cell:not(.empty):hover { background: #f0f0ee; }
     <button class="loc-btn" data-loc="jersey" onclick="pickLocation('jersey')">🏖️ Jersey</button>
     <button class="loc-btn" data-loc="london" onclick="pickLocation('london')">🇬🇧 London</button>
   </div>
-  <button class="action-btn btn-select" id="selectBtn" onclick="startSelecting()" disabled>Select days</button>
+  <span class="name-hint" id="nameHint" style="font-size:0.82rem; color:#9b9a97;">Enter your name, then pick a location to start</span>
 </div>
 
 <div class="select-banner" id="selectBanner">
@@ -514,19 +514,45 @@ function render() {
 
 // ---- Interaction ----
 function pickLocation(loc) {
-  currentLocation = loc;
-  document.querySelectorAll(".loc-btn").forEach(b => {
-    b.classList.remove("active-jersey", "active-london");
-    if (b.dataset.loc === loc) b.classList.add(loc === "jersey" ? "active-jersey" : "active-london");
-  });
-  updateSelectBtn();
-}
-
-function updateSelectBtn() {
   const name = document.getElementById("nameInput").value.trim();
-  document.getElementById("selectBtn").disabled = !(name && currentLocation);
+  if (!name) {
+    // Flash the name input to show they need to enter a name first
+    const input = document.getElementById("nameInput");
+    input.style.borderColor = "#e8907a";
+    input.placeholder = "Enter your name first!";
+    input.focus();
+    setTimeout(() => { input.style.borderColor = ""; input.placeholder = "Your name"; }, 2000);
+    return;
+  }
+
+  if (selecting) {
+    // Already selecting — switch location
+    const currentSet = currentLocation === "jersey" ? jerseyDays : londonDays;
+    currentSet.clear();
+    selectedDays.forEach(d => currentSet.add(d));
+
+    currentLocation = loc;
+    document.querySelectorAll(".loc-btn").forEach(b => {
+      b.classList.remove("active-jersey", "active-london");
+      if (b.dataset.loc === loc) b.classList.add(loc === "jersey" ? "active-jersey" : "active-london");
+    });
+
+    selectedDays.clear();
+    const newSet = currentLocation === "jersey" ? jerseyDays : londonDays;
+    newSet.forEach(d => selectedDays.add(d));
+
+    updateBanner();
+    render();
+  } else {
+    // Start selecting immediately
+    currentLocation = loc;
+    document.querySelectorAll(".loc-btn").forEach(b => {
+      b.classList.remove("active-jersey", "active-london");
+      if (b.dataset.loc === loc) b.classList.add(loc === "jersey" ? "active-jersey" : "active-london");
+    });
+    startSelecting();
+  }
 }
-document.getElementById("nameInput").addEventListener("input", updateSelectBtn);
 
 // Track selections per location
 let jerseyDays = new Set();
@@ -563,10 +589,8 @@ function startSelecting() {
   selectingColorIdx = existing ? (existing.colorIdx ?? 0) : colorCounter % TAG_COLORS;
 
   document.body.classList.add("selecting");
-  document.getElementById("selectBtn").style.display = "none";
   document.getElementById("nameInput").disabled = true;
-  document.querySelectorAll(".loc-btn").forEach(b => b.disabled = true);
-  document.querySelector(".input-bar").style.opacity = "0.5";
+  document.getElementById("nameHint").style.display = "none";
 
   updateBanner();
   render();
@@ -599,12 +623,13 @@ function cancelSelecting() {
   selectedDays.clear();
   jerseyDays.clear();
   londonDays.clear();
+  currentLocation = null;
   document.body.classList.remove("selecting");
-  document.getElementById("selectBtn").style.display = "";
   document.getElementById("selectBanner").classList.remove("show");
   document.getElementById("nameInput").disabled = false;
-  document.querySelectorAll(".loc-btn").forEach(b => b.disabled = false);
-  document.querySelector(".input-bar").style.opacity = "1";
+  document.getElementById("nameInput").value = "";
+  document.getElementById("nameHint").style.display = "";
+  document.querySelectorAll(".loc-btn").forEach(b => b.classList.remove("active-jersey", "active-london"));
   render();
 }
 
@@ -640,16 +665,13 @@ async function doneSelecting() {
   selectedDays.clear();
   jerseyDays.clear();
   londonDays.clear();
+  currentLocation = null;
   document.body.classList.remove("selecting");
-  document.getElementById("selectBtn").style.display = "";
   document.getElementById("selectBanner").classList.remove("show");
   document.getElementById("nameInput").disabled = false;
-  document.querySelectorAll(".loc-btn").forEach(b => b.disabled = false);
-  document.querySelector(".input-bar").style.opacity = "1";
   document.getElementById("nameInput").value = "";
-  currentLocation = null;
+  document.getElementById("nameHint").style.display = "";
   document.querySelectorAll(".loc-btn").forEach(b => b.classList.remove("active-jersey", "active-london"));
-  updateSelectBtn();
   await fetchEntries();
 }
 
